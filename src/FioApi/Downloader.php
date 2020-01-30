@@ -6,6 +6,7 @@ namespace FioApi;
 use FioApi\Exceptions\InternalErrorException;
 use FioApi\Exceptions\TooGreedyException;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Psr7\Stream;
 use Psr\Http\Message\ResponseInterface;
 
 class Downloader
@@ -18,6 +19,9 @@ class Downloader
 
     /** @var string */
     protected $certificatePath;
+
+    /**  @var string */
+    protected $format;
 
     public function __construct(
         string $token,
@@ -59,7 +63,21 @@ class Downloader
     public function downloadFromTo(\DateTimeInterface $from, \DateTimeInterface $to): TransactionList
     {
         $url = $this->urlBuilder->buildPeriodsUrl($from, $to);
+
         return $this->downloadTransactionsList($url);
+    }
+
+    public function downloadFileFromTo(\DateTimeInterface $from, \DateTimeInterface $to): Stream
+    {
+        if (!is_null($this->format)) {
+            $this->urlBuilder->setFormat($this->format);
+        }
+
+        $url = $this->urlBuilder->buildPeriodsUrl($from, $to);
+
+        $response = $this->downloadTransactionFile($url);
+
+        return $response->getBody();
     }
 
     public function downloadSince(\DateTimeInterface $since): TransactionList
@@ -85,6 +103,16 @@ class Downloader
         }
     }
 
+    /**
+     * @param string $format
+     * @return Downloader
+     */
+    public function setFormat(string $format): Downloader
+    {
+        $this->format = $format;
+        return $this;
+    }
+
     private function downloadTransactionsList(string $url): TransactionList
     {
         $client = $this->getClient();
@@ -97,6 +125,20 @@ class Downloader
         }
 
         return TransactionList::create(json_decode($response->getBody()->getContents())->accountStatement);
+    }
+
+    public function downloadTransactionFile(string $url): ResponseInterface
+    {
+        $client = $this->getClient();
+
+        try {
+            /** @var ResponseInterface $response */
+            $response = $client->request('get', $url, ['verify' => $this->getCertificatePath()]);
+        } catch (\GuzzleHttp\Exception\BadResponseException $e) {
+            $this->handleException($e);
+        }
+
+        return $response;
     }
 
     private function handleException(\GuzzleHttp\Exception\BadResponseException $e): void

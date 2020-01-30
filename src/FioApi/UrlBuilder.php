@@ -12,6 +12,9 @@ class UrlBuilder
     /** @var string */
     protected $token;
 
+    /** @var string */
+    protected $format = 'json';
+
     public function __construct(string $token)
     {
         $this->setToken($token);
@@ -35,10 +38,11 @@ class UrlBuilder
     public function buildPeriodsUrl(\DateTimeInterface $from, \DateTimeInterface $to): string
     {
         return sprintf(
-            self::BASE_URL . 'periods/%s/%s/%s/transactions.json',
+            self::BASE_URL . 'periods/%s/%s/%s/transactions.%s',
             $this->getToken(),
             $from->format('Y-m-d'),
-            $to->format('Y-m-d')
+            $to->format('Y-m-d'),
+            $this->format
         );
     }
 
@@ -57,5 +61,10 @@ class UrlBuilder
             $this->getToken(),
             $id
         );
+    }
+
+    public function setFormat(string $format)
+    {
+        $this->format = $format;
     }
 }
